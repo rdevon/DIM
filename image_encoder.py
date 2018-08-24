@@ -16,7 +16,7 @@ from alexnet_64 import AlexNetEncoder
 class EncoderBase(ModelPlugin):
 
     def build(self, encoder_type: str='convnet', dim_out: int=None,
-              encoder_args=dict()):
+              encoder_args=dict(), semi_supervised=None):
         '''
 
         Args:
@@ -65,13 +65,14 @@ class EncoderBase(ModelPlugin):
         except IndexError:
             pass
 
-        # Build the classifier on top of Y.
-        self.classifier.build(dim_in=dim_z)
+        if not semi_supervised:
+            # Build the classifier on top of Y.
+            self.classifier.build(dim_in=dim_z)
 
-        # Build the classifier on top of the layer below Y.
-        self.h_idx = self.linear_indices[0]
-        dim_h = self.nets.encoder.states[self.h_idx].size(1)
-        self.classifier_h.build(dim_in=dim_h)
+            # Build the classifier on top of the layer below Y.
+            self.h_idx = self.linear_indices[0]
+            dim_h = self.nets.encoder.states[self.h_idx].size(1)
+            self.classifier_h.build(dim_in=dim_h)
 
         # Build the classifier on top of the last conv layer.
         dim_c = self.nets.encoder.states[self.c_idx].size(1)
@@ -106,15 +107,17 @@ class ImageEncoder(EncoderBase):
                 encoder (off by default).
 
         '''
-        Z_Q = self.encode(inputs, nonlinearity=False)
+        Z_Q = self.encode(inputs, nonlinearity=False).detach()
 
         if semi_supervised:
             self.classifier_c.routine(
                 self.nets.encoder.states[self.c_idx], targets)
-            if 'encoder' in self.losses:
-                self.losses.encoder += self.losses.classifier_c
-            else:
-                self.losses.encoder = self.losses.classifier_c
+            if 'classifier_c' in self.losses:
+                # For STL, some batches will not have labels, so no loss.
+                if 'encoder' in self.losses:
+                    self.losses.encoder += self.losses.classifier_c
+                else:
+                    self.losses.encoder = self.losses.classifier_c
 
         else:
             self.classifier.routine(Z_Q.detach(), targets)
