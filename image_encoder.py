@@ -111,7 +111,11 @@ class ImageEncoder(EncoderBase):
         if semi_supervised:
             self.classifier_c.routine(
                 self.nets.encoder.states[self.c_idx], targets)
-            self.losses.encoder = self.losses.classifier_c
+            if 'encoder' in self.losses:
+                self.losses.encoder += self.losses.classifier_c
+            else:
+                self.losses.encoder = self.losses.classifier_c
+
         else:
             self.classifier.routine(Z_Q.detach(), targets)
             self.classifier_h.routine(
