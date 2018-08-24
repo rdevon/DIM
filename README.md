@@ -3,7 +3,7 @@ Learning Deep Representations by Mutual Information Estimation and Maximization
 
 Sample code to do the local-only objective in https://arxiv.org/abs/1808.06670
 
-### Requirments
+### Requirements
 
 This module requires cortex: https://github.com/rdevon/cortex
 
