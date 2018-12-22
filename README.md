@@ -1,4 +1,7 @@
 # DIM
+
+[UPDATE]: this work has been accepted as an oral presentation at ICLR 2019. We will be updating the code over the next few weeks to reflect recent experiments.
+
 Learning Deep Representations by Mutual Information Estimation and Maximization
 
 Sample code to do the local-only objective in https://arxiv.org/abs/1808.06670
