@@ -86,7 +86,6 @@ class Convnet(nn.Module):
 
             if dim_out is not None:
                 conv = nn.Conv2d(dim_in, dim_out, kernel_size=f, stride=s, padding=p, bias=not(batch_norm))
-                nn.init.kaiming_normal_(conv.weight, mode='fan_out', nonlinearity='relu')
                 conv_block.add_module(name + 'conv', conv)
                 dim_x, dim_y = self.next_size(dim_x, dim_y, f, s, p)
             else:
@@ -279,8 +278,8 @@ class FoldedConvnet(Convnet):
             conv_block = nn.Sequential()
 
             if dim_out is not None:
-                conv_block.add_module(name + 'conv',
-                                      nn.Conv2d(dim_in, dim_out, kernel_size=f, stride=s, padding=p, bias=not(batch_norm)))
+                conv = nn.Conv2d(dim_in, dim_out, kernel_size=f, stride=s, padding=p, bias=not(batch_norm))
+                conv_block.add_module(name + 'conv', conv)
                 dim_x, dim_y = self.next_size(dim_x, dim_y, f, s, p)
             else:
                 dim_out = dim_in
@@ -288,7 +287,8 @@ class FoldedConvnet(Convnet):
             if dropout:
                 conv_block.add_module(name + 'do', nn.Dropout2d(p=dropout))
             if batch_norm:
-                conv_block.add_module(name + 'bn', nn.BatchNorm2d(dim_out))
+                bn = nn.BatchNorm2d(dim_out)
+                conv_block.add_module(name + 'bn', bn)
 
             if nonlinearity:
                 nonlinearity = get_nonlinearity(nonlinearity)

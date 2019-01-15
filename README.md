@@ -11,7 +11,7 @@ https://arxiv.org/abs/1808.06670
 ### Completed
 [Updated 1/15/2019]
 * Latest code for dot-product style scoring function for local DIM (single or multiple globals).
-* NCE / DV losses.
+* JSD / NCE / DV losses (In addition, f-divergences: KL, reverse KL, squared Hellinger, chi squared).
 * Convnet and folded convnet (strided crops) architectures. 
 
 ### TODO
@@ -19,6 +19,7 @@ https://arxiv.org/abs/1808.06670
 * NDM, MINE, SVM, and MS-SSIM evaluation.
 * Global DIM and prior matching.
 * Coordinate and occlusion tasks.
+* Other baselines (VAE, AAE, BiGAN, NAT, CPC).
 * Add nearest neighbor analysis.
 
 ### Installation / requirements
