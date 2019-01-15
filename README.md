@@ -28,7 +28,6 @@ This is a package, so to install just run:
     $ pip install .
 
 This package installs the dev branch cortex: https://github.com/rdevon/cortex
-
 Which requires Python 3.5+ (Not tested on higher than 3.7). Note that cortex is in early beta stages, but it is usable for this demo. 
 
 cortex optionally requires visdom: https://github.com/pytorch/vision
