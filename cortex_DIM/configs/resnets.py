@@ -2,11 +2,11 @@
 
 """
 
-from cortex_DIM.networks.dim_encoders import DIMResnet, DIMFoldedResnet
+from cortex_DIM.nn_modules.encoder import ResnetEncoder, FoldedResnetEncoder
 
 
 _resnet19_32x32 = dict(
-    Encoder=DIMResnet,
+    Encoder=ResnetEncoder,
     conv_before_args=[(64, 3, 2, 1, True, False, 'ReLU', None)],
     res_args=[
         ([(64, 1, 1, 0, True, False, 'ReLU', None),
@@ -40,7 +40,7 @@ _resnet19_32x32 = dict(
 )
 
 _foldresnet19_32x32 = dict(
-    Encoder=DIMFoldedResnet,
+    Encoder=FoldedResnetEncoder,
     crop_size=8,
     conv_before_args=[(64, 3, 2, 1, True, False, 'ReLU', None)],
     res_args=[
@@ -75,7 +75,7 @@ _foldresnet19_32x32 = dict(
 )
 
 _resnet34_32x32 = dict(
-    Encoder=DIMResnet,
+    Encoder=ResnetEncoder,
     conv_before_args=[(64, 3, 2, 1, True, False, 'ReLU', None)],
     res_args=[
         ([(64, 1, 1, 0, True, False, 'ReLU', None),
@@ -109,7 +109,7 @@ _resnet34_32x32 = dict(
 )
 
 _foldresnet34_32x32 = dict(
-    Encoder=DIMFoldedResnet,
+    Encoder=FoldedResnetEncoder,
     crop_size=8,
     conv_before_args=[(64, 3, 2, 1, True, False, 'ReLU', None)],
     res_args=[

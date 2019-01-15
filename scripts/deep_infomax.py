@@ -12,6 +12,7 @@ from cortex_DIM.nn_modules.mi_networks import MIFCNet, MI1x1ConvNet
 from cortex_DIM.functions.dim_losses import fenchel_dual_loss, multi_donsker_varadhan_loss, nce_loss, \
     multi_nce_loss, donsker_varadhan_loss, multi_fenchel_dual_loss
 from cortex_DIM.configs.convnets import configs as convnet_configs
+from cortex_DIM.configs.resnets import configs as resnet_configs
 
 
 logger = logging.getLogger('cortex_DIM')
@@ -70,9 +71,13 @@ class DIM(ModelPlugin):
         input_shape = (dim_x, dim_y, dim_c)
 
         # Create encoder.
-        encoder_args_ = convnet_configs.get(encoder_config, None)
+        configs = dict()
+        configs.update(**convnet_configs)
+        configs.update(**resnet_configs)
+
+        encoder_args_ = configs.get(encoder_config, None)
         if encoder_args_ is None:
-            raise logger.warning('encoder_type `{}` not supported'.format(encoder_type))
+            raise logger.warning('encoder_type `{}` not supported'.format(encoder_config))
             encoder_args_ = {}
         encoder_args_.update(**encoder_args)
         encoder_args = encoder_args_

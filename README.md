@@ -1,6 +1,6 @@
 # Deep InfoMax (DIM)
 
-[UPDATE]: this work has been accepted as an oral presentation at ICLR 2019. 
+This work has been accepted as an oral presentation at ICLR 2019.
 We are gradually updating the repository over the next few weeks to reflect experiments in the camera-ready version.
 
 Learning Deep Representations by Mutual Information Estimation and Maximization
@@ -13,9 +13,10 @@ https://arxiv.org/abs/1808.06670
 * Latest code for dot-product style scoring function for local DIM (single or multiple globals).
 * JSD / NCE / DV losses (In addition, f-divergences: KL, reverse KL, squared Hellinger, chi squared).
 * Convnet and folded convnet (strided crops) architectures. 
+* Resnet and folded resnet architectures.
 
 ### TODO
-* Resnet and folded resnet architectures and training classifiers keeping the encoder fixed (evaluation).
+* Training classifiers keeping the encoder fixed (evaluation).
 * NDM, MINE, SVM, and MS-SSIM evaluation.
 * Global DIM and prior matching.
 * Coordinate and occlusion tasks.
@@ -52,8 +53,12 @@ For CIFAR10 on a DCGAN architecture, try:
 You should get over 71-72% in the pretraining step alone (this was included for monitoring purposes only). 
 Note, this wont get you all the way towards reproducing results in the paper: for this the classifier needs to be retrained with the encoder held fixed.
 Support for training a classifier with the representations fixed is coming soon.
+
+For a folded Resnet (strided crops) and the noise-contrastive estimation (NCE) type loss, one could do:
+
+    $ python scripts/deep_infomax.py --d.source CIFAR10 --encoder_config foldresnet19_32x32 --mode nce -n DIM_CIFAR10_FoldedResnet --d.copy_to_local --t.epochs 1000
     
-For STL-10 on folded 64x64 Alexnet (strided crops) with multiple globals and the noise-contrastive estimation type loss, try:
+For STL-10 on folded 64x64 Alexnet with multiple globals and the NCE-type loss, try:
 
     $ python scripts/deep_infomax.py --d.sources STL10 --d.data_args "dict(stl_resize_only=True)" --d.n_workers 32 -n DIM_STL --t.epochs 200 --d.copy_to_local --encoder_config foldmultialex64x64 --mode nce --global_units 0
 

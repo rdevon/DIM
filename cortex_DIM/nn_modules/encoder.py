@@ -5,7 +5,7 @@
 import torch
 
 from cortex_DIM.nn_modules.convnet import Convnet, FoldedConvnet
-#from cortex_DIM.nn_modules import ResNet, FoldedResNet
+from cortex_DIM.nn_modules.resnet import ResNet, FoldedResNet
 
 
 def create_encoder(Module):
@@ -88,9 +88,9 @@ class FoldedConvnetEncoder(create_encoder(FoldedConvnet)):
     pass
 
 
-#class DIMResnet(create_dim_encoder(ResNet)):
-#    pass
+class ResnetEncoder(create_encoder(ResNet)):
+    pass
 
 
-#class DIMFoldedResnet(create_dim_encoder(FoldedResNet)):
-#    pass
+class FoldedResnetEncoder(create_encoder(FoldedResNet)):
+    pass
