@@ -238,8 +238,8 @@ class FoldedResNet(ResNet):
             if dim_x != dim_y:
                 raise ValueError('dim_x and dim_y do not match.')
 
-            if dim_x == 1:
-                shape = (self.final_size, self.final_size, shape[2])
+        if dim_x == 1:
+            shape = (self.final_size, self.final_size, shape[2])
 
         return res_layers, shape
 

@@ -9,15 +9,16 @@ https://openreview.net/forum?id=Bklr3j0cKX
 https://arxiv.org/abs/1808.06670
 
 ### Completed
-[Updated 1/15/2019]
+[Updated 1/18/2019]
 * Latest code for dot-product style scoring function for local DIM (single or multiple globals).
 * JSD / NCE / DV losses (In addition, f-divergences: KL, reverse KL, squared Hellinger, chi squared).
 * Convnet and folded convnet (strided crops) architectures. 
 * Resnet and folded resnet architectures.
+* Training classifiers keeping the encoder fixed (evaluation).
 
 ### TODO
-* Training classifiers keeping the encoder fixed (evaluation).
 * NDM, MINE, SVM, and MS-SSIM evaluation.
+* Semi-supervised learning.
 * Global DIM and prior matching.
 * Coordinate and occlusion tasks.
 * Other baselines (VAE, AAE, BiGAN, NAT, CPC).
@@ -51,13 +52,21 @@ For CIFAR10 on a DCGAN architecture, try:
     $ python scripts/deep_infomax.py --d.source CIFAR10 -n DIM_CIFAR10 --d.copy_to_local --t.epochs 1000
     
 You should get over 71-72% in the pretraining step alone (this was included for monitoring purposes only). 
-Note, this wont get you all the way towards reproducing results in the paper: for this the classifier needs to be retrained with the encoder held fixed.
-Support for training a classifier with the representations fixed is coming soon.
+    
+For classification evaluation, keeping the encoder fixed (the classification numbers for the above script are for monitoring only),
+do:
+
+    $ python scripts/evaluation.py --d.source CIFAR10 -n DIM_CIFAR10_cls --d.copy_to_local --t.epochs 1000 -L <path to cortex outs>/DIM_CIFAR10/binaries/DIM_CIFAR10_final.t7
+    
+You should get 73-74% with this model. 
+Note that the learning rate schedule in this script isn't precisely what was used across models in the paper.
+The rates in the paper were different for different classifiers; if there is any significant classifier overfitting, adjust to use a faster decay rate.
 
 For a folded Resnet (strided crops) and the noise-contrastive estimation (NCE) type loss, one could do:
 
-    $ python scripts/deep_infomax.py --d.source CIFAR10 --encoder_config foldresnet19_32x32 --mode nce -n DIM_CIFAR10_FoldedResnet --d.copy_to_local --t.epochs 1000
+    $ python scripts/deep_infomax.py --d.source CIFAR10 --encoder_config foldresnet19_32x32 --mode nce --mi_units 1024 -n DIM_CIFAR10_FoldedResnet --d.copy_to_local --t.epochs 1000
     
+where the number of units used for estimating mutual information are the same we used for comparisons to CPC. 
 For STL-10 on folded 64x64 Alexnet with multiple globals and the NCE-type loss, try:
 
     $ python scripts/deep_infomax.py --d.sources STL10 --d.data_args "dict(stl_resize_only=True)" --d.n_workers 32 -n DIM_STL --t.epochs 200 --d.copy_to_local --encoder_config foldmultialex64x64 --mode nce --global_units 0

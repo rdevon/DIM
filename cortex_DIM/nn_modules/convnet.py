@@ -56,6 +56,9 @@ class Convnet(nn.Module):
             fc_args: List of tuple of fully-connected arguments.
         '''
 
+        if len(shape) == 1:
+            shape = (1, 1, shape[0])
+
         self.conv_layers, self.conv_shape = self.create_conv_layers(shape, conv_args)
 
         dim_x, dim_y, dim_out = self.conv_shape
