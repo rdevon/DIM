@@ -1,4 +1,5 @@
 
+from setuptools import setup
 
 setup(name='cortex_DIM',
       version='0.12',
