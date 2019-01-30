@@ -220,21 +220,6 @@ class DIM(ModelPlugin):
 
         return loss
 
-    def train_step(self):
-        """One step in training.
-
-        """
-        self.data.next()
-        self.routine()
-        self.optimizer_step()
-
-    def eval_step(self):
-        """One step in evaluation.
-
-        """
-        self.data.next()
-        self.routine()
-
 
 if __name__ == '__main__':
     run(DIM())

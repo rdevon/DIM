@@ -28,6 +28,7 @@ https://arxiv.org/abs/1808.06670
 
 This is a package, so to install just run:
 
+    $ pip install git+https://github.com/rdevon/cortex@dev#egg=cortex-dev0.13
     $ pip install .
 
 This package installs the dev branch cortex: https://github.com/rdevon/cortex
