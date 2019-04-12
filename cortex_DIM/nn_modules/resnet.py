@@ -6,10 +6,7 @@ import torch
 import torch.nn as nn
 
 from cortex_DIM.nn_modules.convnet import Convnet
-from cortex_DIM.nn_modules.misc import Fold, Unfold, View
-
-
-_nonlin_idx = 6
+from cortex_DIM.nn_modules.misc import Fold, Unfold
 
 
 class ResBlock(Convnet):
@@ -17,33 +14,36 @@ class ResBlock(Convnet):
 
     '''
 
-    def create_layers(self, shape, conv_args=None):
+    def create_layers(self, shape, layers=None, final_act=None, downsample=None):
         '''Creates layers
 
         Args:
             shape: Shape of input.
-            conv_args: Layer arguments for block.
+            layers: list of layer arguments.
+            final_act: Final activation.
+            downsample: Arguments for downsample (optional).
         '''
 
         # Move nonlinearity to a separate step for residual.
-        final_nonlin = conv_args[-1][_nonlin_idx]
-        conv_args[-1] = list(conv_args[-1])
-        conv_args[-1][_nonlin_idx] = None
-        conv_args.append((None, 0, 0, 0, False, False, final_nonlin, None))
+        self.layers, self.shapes = self.create_sequential(shape, layers=layers)
+        self.final_act, _ = self.create_sequential(self.shapes[-1], layers=[dict(act=final_act)])
 
-        super().create_layers(shape, conv_args=conv_args)
+        if self.shapes[-1] != shape:
+            if downsample is not None:
+                self.downsample, ds_shape = self.create_sequential(shape, layers=downsample)
+                assert ds_shape[-1] == self.shapes[-1], (ds_shape[-1], self.shapes[-1])
+            else:
+                # Auto build downsample (doesn't always work)
+                dim_x, dim_y, dim_in = shape
+                dim_x_, dim_y_, dim_out = self.shapes[-1]
+                stride = dim_x // dim_x_
+                next_x, _ = self.next_conv_size(dim_x, dim_y, 1, stride, 0)
+                assert next_x == dim_x_, (self.shapes[-1], shape)
 
-        if self.conv_shape != shape:
-            dim_x, dim_y, dim_in = shape
-            dim_x_, dim_y_, dim_out = self.conv_shape
-            stride = dim_x // dim_x_
-            next_x, _ = self.next_size(dim_x, dim_y, 1, stride, 0)
-            assert next_x == dim_x_, (self.conv_shape, shape)
-
-            self.downsample = nn.Sequential(
-                nn.Conv2d(dim_in, dim_out, kernel_size=1, stride=stride, padding=0, bias=False),
-                nn.BatchNorm2d(dim_out),
-            )
+                self.downsample = nn.Sequential(
+                    nn.Conv2d(dim_in, dim_out, kernel_size=1, stride=stride, padding=0, bias=False),
+                    nn.BatchNorm2d(dim_out),
+                )
         else:
             self.downsample = None
 
@@ -63,112 +63,51 @@ class ResBlock(Convnet):
         else:
             residual = x
 
-        x = self.conv_layers[-1](self.conv_layers[:-1](x) + residual)
+        x = self.final_act(self.layers(x) + residual)
 
         return x
 
 
 class ResNet(Convnet):
-    def create_layers(self, shape, conv_before_args=None, res_args=None, conv_after_args=None, fc_args=None):
-        '''Creates layers
+    '''Resnet.
+
+    '''
+
+    _supported_types = ('linear', 'conv', 'tconv', 'flatten', 'resblock', None)
+
+    def handle_layer(self, block, shape, layer, layer_type):
+        '''Handles the layer arguments and adds layer to the block.
 
         Args:
+            block: nn.Sequential to add modules to.
             shape: Shape of the input.
-            conv_before_args: Arguments for convolutional layers before residuals.
-            res_args: Residual args.
-            conv_after_args: Arguments for convolutional layers after residuals.
-            fc_args: Fully-connected arguments.
-
-        '''
-
-        dim_x, dim_y, dim_in = shape
-        shape = (dim_x, dim_y, dim_in)
-        self.conv_before_layers, self.conv_before_shape = self.create_conv_layers(shape, conv_before_args)
-        self.res_layers, self.res_shape = self.create_res_layers(self.conv_before_shape, res_args)
-        self.conv_after_layers, self.conv_after_shape = self.create_conv_layers(self.res_shape, conv_after_args)
-
-        dim_x, dim_y, dim_out = self.conv_after_shape
-        dim_r = dim_x * dim_y * dim_out
-        self.reshape = View(-1, dim_r)
-        self.fc_layers, _ = self.create_linear_layers(dim_r, fc_args)
-
-    def create_res_layers(self, shape, block_args=None):
-        '''Creates a set of residual blocks.
-
-        Args:
-            shape: input shape.
-            block_args: Arguments for blocks.
+            layer: Layer arguments.
+            layer_type: Type of layer.
 
         Returns:
-            nn.Sequential: sequence of residual blocks.
-
+            tuple: Output shape.
         '''
 
-        res_layers = nn.Sequential()
-        block_args = block_args or []
-
-        for i, (conv_args, n_blocks) in enumerate(block_args):
-            block = ResBlock(shape, conv_args=conv_args)
-            res_layers.add_module('block_{}_0'.format(i), block)
-
-            for j in range(1, n_blocks):
-                shape = block.conv_shape
-                block = ResBlock(shape, conv_args=conv_args)
-                res_layers.add_module('block_{}_{}'.format(i, j), block)
-            shape = block.conv_shape
-
-        return res_layers, shape
-
-    def forward(self, x: torch.Tensor, return_full_list=False):
-        '''Forward pass
-
-        Args:
-            x: Input.
-            return_full_list: Optional, returns all layer outputs.
-
-        Returns:
-            torch.Tensor or list of torch.Tensor.
-
-        '''
-
-        if return_full_list:
-            conv_before_out = []
-            for conv_layer in self.conv_before_layers:
-                x = conv_layer(x)
-                conv_before_out.append(x)
+        if layer_type == 'resblock':
+            layers = layer.pop('layers', [])
+            final_act = layer.pop('final_act', None)
+            downsample = layer.pop('downsample', None)
+            repeat = layer.pop('repeat', 1)
+            if repeat == 1:
+                resblock = ResBlock(shape, layers=layers, final_act=final_act,
+                                    downsample=downsample)
+                block.add_module(layer_type, resblock)
+                shape = resblock.shapes[-1]
+            else:
+                for i in range(repeat):
+                    resblock = ResBlock(shape, layers=layers, final_act=final_act,
+                                        downsample=downsample)
+                    block.add_module(layer_type + '_{}'.format(i), resblock)
+                    shape = resblock.shapes[-1]
         else:
-            conv_before_out = self.conv_layers(x)
-            x = conv_before_out
+            shape = super().handle_layer(block, shape, layer, layer_type)
 
-        if return_full_list:
-            res_out = []
-            for res_layer in self.res_layers:
-                x = res_layer(x)
-                res_out.append(x)
-        else:
-            res_out = self.res_layers(x)
-            x = res_out
-
-        if return_full_list:
-            conv_after_out = []
-            for conv_layer in self.conv_after_layers:
-                x = conv_layer(x)
-                conv_after_out.append(x)
-        else:
-            conv_after_out = self.conv_after_layers(x)
-            x = conv_after_out
-
-        x = self.reshape(x)
-
-        if return_full_list:
-            fc_out = []
-            for fc_layer in self.fc_layers:
-                x = fc_layer(x)
-                fc_out.append(x)
-        else:
-            fc_out = self.fc_layers(x)
-
-        return conv_before_out, res_out, conv_after_out, fc_out
+        return shape
 
 
 class FoldedResNet(ResNet):
@@ -176,122 +115,61 @@ class FoldedResNet(ResNet):
 
     '''
 
-    def create_layers(self, shape, crop_size=8, conv_before_args=None, res_args=None,
-                      conv_after_args=None, fc_args=None):
-        '''Creates layers
+    _supported_types = ('linear', 'conv', 'tconv', 'flatten', 'resblock', 'fold', 'unfold', None)
+
+    def create_layers(self, shape, crop_size=8, layers=None):
+        ''''Creates layers
 
         Args:
-            shape: Shape of the input.
-            crop_size: Size of the crops.
-            conv_before_args: Arguments for convolutional layers before residuals.
-            res_args: Residual args.
-            conv_after_args: Arguments for convolutional layers after residuals.
-            fc_args: Fully-connected arguments.
-
+            shape: Shape of input.
+            crop_size: Size of crops
+            layers: list of layer arguments.
         '''
+
         self.crop_size = crop_size
+        self.layers, self.shapes = self.create_sequential(shape, layers=layers)
 
-        dim_x, dim_y, dim_in = shape
-        self.final_size = 2 * (dim_x // self.crop_size) - 1
-
-        self.unfold = Unfold(dim_x, self.crop_size)
-        self.refold = Fold(dim_x, self.crop_size)
-
-        shape = (self.crop_size, self.crop_size, dim_in)
-        self.conv_before_layers, self.conv_before_shape = self.create_conv_layers(shape, conv_before_args)
-
-        self.res_layers, self.res_shape = self.create_res_layers(self.conv_before_shape, res_args)
-        self.conv_after_layers, self.conv_after_shape = self.create_conv_layers(self.res_shape, conv_after_args)
-        self.conv_after_shape = self.res_shape
-
-        dim_x, dim_y, dim_out = self.conv_after_shape
-        dim_r = dim_x * dim_y * dim_out
-        self.reshape = View(-1, dim_r)
-        self.fc_layers, _ = self.create_linear_layers(dim_r, fc_args)
-
-    def create_res_layers(self, shape, block_args=None):
-        '''Creates a set of residual blocks.
+    def create_sequential(self, shape, layers=None):
+        '''Creates a sequence of layers.
 
         Args:
-            shape: input shape.
-            block_args: Arguments for blocks.
+            shape: Input shape.
+            layers: list of layer arguments.
 
         Returns:
-            nn.Sequential: sequence of residual blocks.
+            nn.Sequential: a sequence of convolutional layers.
 
         '''
 
-        res_layers = nn.Sequential()
-        block_args = block_args or []
+        self.final_size = None
+        return super().create_sequential(shape, layers=layers)
 
-        for i, (conv_args, n_blocks) in enumerate(block_args):
-            block = ResBlock(shape, conv_args=conv_args)
-            res_layers.add_module('block_{}_0'.format(i), block)
-
-            for j in range(1, n_blocks):
-                shape = block.conv_shape
-                block = ResBlock(shape, conv_args=conv_args)
-                res_layers.add_module('block_{}_{}'.format(i, j), block)
-            shape = block.conv_shape
-            dim_x, dim_y = shape[:2]
-
-            if dim_x != dim_y:
-                raise ValueError('dim_x and dim_y do not match.')
-
-        if dim_x == 1:
-            shape = (self.final_size, self.final_size, shape[2])
-
-        return res_layers, shape
-
-    def forward(self, x: torch.Tensor, return_full_list=False):
-        '''Forward pass
+    def handle_layer(self, block, shape, layer, layer_type):
+        '''Handles the layer arguments and adds layer to the block.
 
         Args:
-            x: Input.
-            return_full_list: Optional, returns all layer outputs.
+            block: nn.Sequential to add modules to.
+            shape: Shape of the input.
+            layer: Layer arguments.
+            layer_type: Type of layer.
 
         Returns:
-            torch.Tensor or list of torch.Tensor.
-
+            tuple: Output shape.
         '''
-        x = self.unfold(x)
-
-        conv_before_out = []
-        for conv_layer in self.conv_before_layers:
-            x = conv_layer(x)
-            if x.size(2) == 1:
-                x = self.refold(x)
-            conv_before_out.append(x)
-
-        res_out = []
-        for res_layer in self.res_layers:
-            x = res_layer(x)
-            res_out.append(x)
-
-        if x.size(2) == 1:
-            x = self.refold(x)
-            res_out[-1] = x
-
-        conv_after_out = []
-        for conv_layer in self.conv_after_layers:
-            x = conv_layer(x)
-            if x.size(2) == 1:
-                x = self.refold(x)
-            conv_after_out.append(x)
-
-        x = self.reshape(x)
-
-        if return_full_list:
-            fc_out = []
-            for fc_layer in self.fc_layers:
-                x = fc_layer(x)
-                fc_out.append(x)
+        if layer_type == 'unfold':
+            dim_x, dim_y, dim_out = shape
+            self.final_size = 2 * (dim_x // self.crop_size) - 1
+            block.add_module('unfold', Unfold(dim_x, self.crop_size))
+            shape = (self.crop_size, self.crop_size, dim_out)
+        elif layer_type == 'fold':
+            if self.final_size is None:
+                raise ValueError('Cannot fold without unfolding first.')
+            dim_out = shape[2]
+            block.add_module('fold', Fold(self.final_size))
+            shape = (self.final_size, self.final_size, dim_out)
+        elif layer_type is None:
+            pass
         else:
-            fc_out = self.fc_layers(x)
+            shape = super().handle_layer(block, shape, layer, layer_type)
 
-        if not return_full_list:
-            conv_before_out = conv_before_out[-1]
-            res_out = res_out[-1]
-            conv_after_out = conv_after_out[-1]
-
-        return conv_before_out, res_out, conv_after_out, fc_out
+        return shape

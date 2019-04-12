@@ -13,7 +13,7 @@ class MIFCNet(nn.Module):
     """Simple custom network for computing MI.
 
     """
-    def __init__(self, n_input, n_units):
+    def __init__(self, n_input, n_units, bn =False):
         """
 
         Args:
@@ -22,11 +22,13 @@ class MIFCNet(nn.Module):
         """
         super().__init__()
 
+        self.bn = bn
+
         assert(n_units >= n_input)
 
         self.linear_shortcut = nn.Linear(n_input, n_units)
         self.block_nonlinear = nn.Sequential(
-            nn.Linear(n_input, n_units),
+            nn.Linear(n_input, n_units, bias=False),
             nn.BatchNorm1d(n_units),
             nn.ReLU(),
             nn.Linear(n_units, n_units)
@@ -40,6 +42,9 @@ class MIFCNet(nn.Module):
         self.linear_shortcut.weight.data.uniform_(-0.01, 0.01)
         self.linear_shortcut.weight.data.masked_fill_(torch.tensor(eye_mask), 1.)
 
+
+        self.block_ln = nn.LayerNorm(n_units)
+
     def forward(self, x):
         """
 
@@ -50,7 +55,13 @@ class MIFCNet(nn.Module):
             torch.Tensor: network output.
 
         """
+
+
         h = self.block_nonlinear(x) + self.linear_shortcut(x)
+
+        if self.bn:
+            h = self.block_ln(h)
+
         return h
 
 
@@ -58,7 +69,7 @@ class MI1x1ConvNet(nn.Module):
     """Simple custorm 1x1 convnet.
 
     """
-    def __init__(self, n_input, n_units):
+    def __init__(self, n_input, n_units,):
         """
 
         Args:
@@ -102,5 +113,20 @@ class MI1x1ConvNet(nn.Module):
                 torch.Tensor: network output.
 
         """
+
         h = self.block_ln(self.block_nonlinear(x) + self.linear_shortcut(x))
         return h
+
+
+class NopNet(nn.Module):
+    def __init__(self, norm_dim=None):
+        super(NopNet, self).__init__()
+        self.norm_dim = norm_dim
+        return
+
+    def forward(self, x):
+        if self.norm_dim is not None:
+            x_norms = torch.sum(x**2., dim=self.norm_dim, keepdim=True)
+            x_norms = torch.sqrt(x_norms + 1e-6)
+            x = x / x_norms
+        return x

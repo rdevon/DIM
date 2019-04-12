@@ -1,6 +1,8 @@
-"""
+'''Losses for training basic GANs.
 
-"""
+Most of this was taken out of the f-GAN paper. WGAN (IPM-style) is also supported.
+
+'''
 
 import math
 
@@ -34,11 +36,11 @@ def get_positive_expectation(p_samples, measure, average=True):
     if measure == 'GAN':
         Ep = - F.softplus(-p_samples)
     elif measure == 'JSD':
-        Ep = log_2 - F.softplus(- p_samples)
+        Ep = log_2 - F.softplus(-p_samples)  # Note JSD will be shifted
     elif measure == 'X2':
         Ep = p_samples ** 2
     elif measure == 'KL':
-        Ep = p_samples + 1.
+        Ep = p_samples
     elif measure == 'RKL':
         Ep = -torch.exp(-p_samples)
     elif measure == 'DV':
@@ -73,11 +75,11 @@ def get_negative_expectation(q_samples, measure, average=True):
     if measure == 'GAN':
         Eq = F.softplus(-q_samples) + q_samples
     elif measure == 'JSD':
-        Eq = F.softplus(-q_samples) + q_samples - log_2
+        Eq = F.softplus(-q_samples) + q_samples - log_2  # Note JSD will be shifted
     elif measure == 'X2':
         Eq = -0.5 * ((torch.sqrt(q_samples ** 2) + 1.) ** 2)
     elif measure == 'KL':
-        Eq = torch.exp(q_samples)
+        Eq = torch.exp(q_samples - 1.)
     elif measure == 'RKL':
         Eq = q_samples - 1.
     elif measure == 'DV':
@@ -93,3 +95,22 @@ def get_negative_expectation(q_samples, measure, average=True):
         return Eq.mean()
     else:
         return Eq
+
+
+def generator_loss(q_samples, measure, loss_type=None):
+    """Computes the loss for the generator of a GAN.
+
+    Args:
+        q_samples: fake samples.
+        measure: Measure to compute loss for.
+        loss_type: Type of loss: basic `minimax` or `non-saturating`.
+
+    """
+    if not loss_type or loss_type == 'minimax':
+        return get_negative_expectation(q_samples, measure)
+    elif loss_type == 'non-saturating':
+        return -get_positive_expectation(q_samples, measure)
+    else:
+        raise NotImplementedError(
+            'Generator loss type `{}` not supported. '
+            'Supported: [None, non-saturating, boundary-seek]')
