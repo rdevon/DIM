@@ -12,7 +12,6 @@ from cortex.main import run
 from cortex_DIM.evaluation_models.classification_eval import ClassificationEval
 from cortex_DIM.evaluation_models.ndm_eval import NDMEval
 from cortex_DIM.evaluation_models.msssim_eval import MSSSIMEval
-from cortex_DIM.evaluation_models.mine_eval import MINEEval
 from cortex_DIM.models.controller import Controller
 from cortex_DIM.models.coordinates import CoordinatePredictor
 from cortex_DIM.models.dim import GlobalDIM, LocalDIM
@@ -31,7 +30,6 @@ if __name__ == '__main__':
         coordinates=CoordinatePredictor,
         classifier=ClassificationEval,
         ndm=NDMEval,
-        mine=MINEEval,
         msssim=MSSSIMEval
     )
 
