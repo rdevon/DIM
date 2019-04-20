@@ -12,7 +12,6 @@ import torch
 
 from cortex_DIM.configs.convnets import configs as convnet_configs
 from cortex_DIM.configs.resnets import configs as resnet_configs
-from cortex_DIM.configs.mlp import configs as mlp_configs
 from cortex_DIM.models.dim import LocalDIM, GlobalDIM
 from cortex_DIM.models.coordinates import CoordinatePredictor
 
