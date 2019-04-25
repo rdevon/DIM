@@ -15,6 +15,7 @@ from cortex_DIM.configs.resnets import configs as resnet_configs
 from cortex_DIM.models.dim import LocalDIM, GlobalDIM
 from cortex_DIM.models.coordinates import CoordinatePredictor
 
+
 logger = logging.getLogger('cortex_DIM')
 
 # We put this out here instead of inside the encoder because of pickle.
@@ -151,7 +152,6 @@ class Controller(ModelPlugin):
         config_dict = dict()
         config_dict.update(**convnet_configs)
         config_dict.update(**resnet_configs)
-        config_dict.update(**mlp_configs)
 
         config = config_dict.get(encoder_config, None)
         if config is None:
